@@ -1,8 +1,8 @@
 require('dotenv').config();
 const knex = require('knex')({
-  client: 'pg', // PostgreSQL
-  connection: process.env.DATABASE_URL, // URL z Render PostgreSQL
-  searchPath: ['public'], // voliteľné, ale odporúčané
+  client: 'pg',
+  connection: process.env.DATABASE_URL,
+  pool: { min: 0, max: 10 }, // aby sa nestalo "unable to acquire a connection"
 });
 
 module.exports = knex;
