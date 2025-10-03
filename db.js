@@ -1,10 +1,8 @@
 require('dotenv').config();
-const knexConfig = {
-  client: 'sqlite3',
-  connection: {
-    filename: process.env.DATABASE_FILE || './data/db.sqlite'
-  },
-  useNullAsDefault: true
-};
-const knex = require('knex')(knexConfig);
+const knex = require('knex')({
+  client: 'pg', // PostgreSQL
+  connection: process.env.DATABASE_URL, // URL z Render PostgreSQL
+  searchPath: ['public'], // voliteľné, ale odporúčané
+});
+
 module.exports = knex;

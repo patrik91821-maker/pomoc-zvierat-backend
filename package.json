@@ -16,7 +16,7 @@
     "jsonwebtoken": "^9.0.0",
     "knex": "^2.5.1",
     "multer": "^1.4.5-lts.1",
-    "sqlite3": "^5.1.6",
+    "pg": "^8.16.3",
     "stripe": "^11.10.0"
   },
   "devDependencies": {
