@@ -20,12 +20,27 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// --- FUNKCIA NA EXTRAKCIU ID ---
+function extractId(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'object' && value !== null && 'id' in value && typeof value.id === 'number') {
+    return value.id;
+  }
+  return null; // alebo môžeš hodiť chybu
+}
+
 // POST /requests
 router.post('/', async (req, res) => {
-  const { title, description, latitude, longitude, address, contact_phone, user_id } = req.body;
+  let { title, description, latitude, longitude, address, contact_phone, user_id } = req.body;
   if (!title) return res.status(400).json({ error: 'Title required' });
+
   try {
-    const [id] = await knex('requests').insert({ title, description, latitude, longitude, address, contact_phone, user_id: user_id || null }).returning('id');
+    user_id = extractId(user_id); // zabezpečíme, že je integer alebo null
+
+    const [id] = await knex('requests')
+      .insert({ title, description, latitude, longitude, address, contact_phone, user_id: user_id || null })
+      .returning('id');
+
     const reqRow = await knex('requests').where({ id }).first();
     res.json(reqRow);
   } catch (err) {
