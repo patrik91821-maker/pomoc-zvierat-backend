@@ -5,11 +5,12 @@ const path = require('path');
 const fs = require('fs');
 const router = express.Router();
 
-// uploads dir
+// uploads dir (zaistenie existencie)
 const uploadsDir = path.join(__dirname, '..', 'uploads');
+// POZNÁMKA: Ak sa kód zrúti pri štarte, overte, či je tento blok v poriadku
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
-// multer
+// multer storage konfigurácia
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadsDir),
   filename: (req, file, cb) => {
@@ -20,28 +21,31 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// --- FUNKCIA NA BEZPECNE ZISKANIE ID ---
-// Bezpečne konvertuje hodnotu na integer, spracováva aj objekty { id: '16' }
+// --- FUNKCIA NA BEZPECNE ZISKANIE/PARSOVANIE ID ---
+// Bezpečne konvertuje hodnotu na integer
 function parseId(value) {
   if (typeof value === 'number') return value;
   
   let idString = value;
   
+  // Spracovanie objektu vráteného Knexom: { id: 16 }
   if (typeof value === 'object' && value !== null && 'id' in value) {
     idString = value.id;
   }
   
-  if (typeof idString === 'string') {
+  // Spracovanie reťazca
+  if (typeof idString === 'string' || typeof idString === 'number') {
     const parsed = parseInt(idString, 10);
     if (!isNaN(parsed)) return parsed;
   }
-  return null; // fallback, ak sa nedá premeniť
+  return null; 
 }
 
 // ------------------------------------------
 
 // POST /requests - Vytvorenie novej žiadosti
-router.post('/', upload.none(), async (req, res) => {
+// POZNÁMKA: upload.none() bol dočasne odstránený pre testovanie chyby status 1
+router.post('/', async (req, res) => {
   const { title, description, latitude, longitude, address, contact_phone, user_id } = req.body;
 
   if (!title) return res.status(400).json({ error: 'Title required' });
@@ -49,8 +53,7 @@ router.post('/', upload.none(), async (req, res) => {
   try {
     const userIdInt = parseId(user_id);
 
-    // Krok 1: Vloženie žiadosti do DB
-    // Metóda .returning('id') vráti pole, napr. [{ id: 16 }] alebo len [16]
+    // Krok 1: Vloženie žiadosti do DB a získanie ID
     const insertResult = await knex('requests')
       .insert({
         title,
@@ -63,8 +66,7 @@ router.post('/', upload.none(), async (req, res) => {
       })
       .returning('id');
       
-    // Krok 2: Bezpečné získanie čistého číselného ID
-    // Použitím parseId na insertResult[0] sa zaručí, že newId bude čisté číslo (integer)
+    // Krok 2: Bezpečné získanie čistého číselného ID (Oprava chyby syntaxe)
     const newId = parseId(insertResult[0]);
     
     if (!newId) {
@@ -72,13 +74,11 @@ router.post('/', upload.none(), async (req, res) => {
         return res.status(500).json({ error: 'Internal server error: Failed to get new ID.' });
     }
 
-    // Krok 3: Načítajte celú žiadosť pomocou čistého ID
-    // Hľadanie cez { id: newId } funguje len, ak newId je čisté číslo
+    // Krok 3: Načítanie celej žiadosti pomocou čistého ID
     const reqRow = await knex('requests').where({ id: newId }).first();
     
-    // Ak by sa nenašiel (málo pravdepodobné)
     if (!reqRow) {
-        return res.status(404).json({ error: 'New request not found.' });
+        return res.status(404).json({ error: 'New request not found after creation.' });
     }
     
     res.json(reqRow);
@@ -87,8 +87,6 @@ router.post('/', upload.none(), async (req, res) => {
     res.status(500).json({ error: 'Cannot create request' });
   }
 });
-
----
 
 // GET /requests - Načítanie všetkých žiadostí
 router.get('/', async (req, res) => {
